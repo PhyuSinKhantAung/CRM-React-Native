@@ -1,60 +1,3 @@
-// import React, { useState } from "react";
-// import { View, TextInput, Button, StyleSheet, Text } from "react-native";
-
-// export default function LeadManagementScreen() {
-//   const [name, setName] = useState("");
-//   const [email, setEmail] = useState("");
-//   const [status, setStatus] = useState("");
-
-//   const handleSave = () => {
-//     // Add your save logic here
-//     console.log("Lead saved:", { name, email, status });
-//   };
-
-//   return (
-//     <View style={styles.container}>
-//       <Text style={styles.title}>Add/Edit Lead</Text>
-//       <TextInput
-//         style={styles.input}
-//         placeholder="Name"
-//         value={name}
-//         onChangeText={setName}
-//       />
-//       <TextInput
-//         style={styles.input}
-//         placeholder="Email"
-//         value={email}
-//         onChangeText={setEmail}
-//       />
-//       <TextInput
-//         style={styles.input}
-//         placeholder="Status"
-//         value={status}
-//         onChangeText={setStatus}
-//       />
-//       <Button title="Save" onPress={handleSave} />
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     padding: 16,
-//   },
-//   title: {
-//     fontSize: 20,
-//     marginBottom: 16,
-//   },
-//   input: {
-//     height: 40,
-//     borderColor: "gray",
-//     borderWidth: 1,
-//     marginBottom: 12,
-//     paddingHorizontal: 8,
-//   },
-// });
-
 import React, { useState } from "react";
 import {
   View,
@@ -62,21 +5,56 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from "react-native";
+import { useAddLead } from "../hooks/leadHooks";
+import { useQueryClient } from "@tanstack/react-query";
 
-export default function LeadManagementScreen() {
+export default function LeadManagementScreen({
+  navigation,
+}: {
+  navigation: any;
+}) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [status, setStatus] = useState("");
+  const [address, setAddress] = useState("");
+  const [estimatedRevenue, setEstimatedRevenue] = useState("");
+
+  const handleInputChange = (text: string) => {
+    if (/^\d*$/.test(text)) {
+      setEstimatedRevenue(text);
+    }
+  };
+  const { mutate: addLead, isPending: isLoading } = useAddLead();
+
+  const queryClient = useQueryClient();
 
   const handleSave = () => {
-    // Save logic here
+    const data = {
+      name,
+      email,
+      phone,
+      address,
+      estimatedRevenue,
+    };
+
+    addLead(data, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["leads"],
+        });
+        navigation.navigate("Dashboard");
+      },
+      onError: (error) => {
+        Alert.alert("Add Lead Failed", "Something Went Wrong!");
+      },
+    });
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Add/Edit Lead</Text>
+      <Text style={styles.title}>Add Lead</Text>
       <TextInput
         style={styles.input}
         placeholder="Name"
@@ -100,12 +78,25 @@ export default function LeadManagementScreen() {
       />
       <TextInput
         style={styles.input}
-        placeholder="Status"
+        placeholder="Address"
         placeholderTextColor="#666"
-        value={status}
-        onChangeText={setStatus}
+        value={address}
+        onChangeText={setAddress}
       />
-      <TouchableOpacity style={styles.button} onPress={handleSave}>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Estimated Revenue"
+        placeholderTextColor="#666"
+        value={estimatedRevenue}
+        onChangeText={handleInputChange}
+        keyboardType="numeric" // Ensure the keyboard is numeric
+      />
+      <TouchableOpacity
+        style={styles.button}
+        disabled={isLoading}
+        onPress={handleSave}
+      >
         <Text style={styles.buttonText}>Save</Text>
       </TouchableOpacity>
     </View>

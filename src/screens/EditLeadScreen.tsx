@@ -5,10 +5,12 @@ import {
   TextInput,
   StyleSheet,
   TouchableOpacity,
+  Alert,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-// import Icon from "react-native-vector-icons/MaterialIcons";
 import { Picker } from "@react-native-picker/picker";
+import { useUpdateLead } from "../hooks/leadHooks";
+import { Lead } from "../apis/leadApi";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function EditLeadScreen({
   route,
@@ -17,29 +19,62 @@ export default function EditLeadScreen({
   route: any;
   navigation: any;
 }) {
-  //   const navigation = useNavigation();
-  const { lead } = route.params; // Get the lead data from navigation params
+  const lead = route.params.lead as Lead;
 
-  console.log({ lead });
-  // State to manage editable fields
   const [name, setName] = useState(lead.name);
   const [phone, setPhone] = useState(lead.phone);
-
+  const [email, setEmail] = useState(lead.email);
+  const [address, setAddress] = useState(lead.address);
+  const [estimatedRevenue, setEstimatedRevenue] = useState(
+    lead.estimatedRevenue
+  );
   const [status, setStatus] = useState(lead.status);
 
   const handleStatusChange = (newStatus: string) => {
     setStatus(newStatus);
-    // onStatusChange(newStatus);
+  };
+
+  const { mutate: updateLeadData, isPending: isLoading } = useUpdateLead(
+    lead.id
+  );
+
+  const queryClient = useQueryClient();
+
+  const handleInputChange = (text: string) => {
+    if (/^\d*$/.test(text)) {
+      setEstimatedRevenue(text);
+    }
   };
 
   const handleSave = () => {
-    // Save logic here (e.g., update the lead in the database or state)
-    console.log("Saved:", { name, phone, status });
-    navigation.goBack(); // Go back to the detail screen after saving
+    updateLeadData(
+      {
+        name,
+        phone,
+        email,
+        address,
+        estimatedRevenue,
+        status,
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({
+            queryKey: [lead.id],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["leads"],
+          });
+          navigation.goBack();
+        },
+        onError: (error) => {
+          Alert.alert("Update Lead Failed", "Something Went Wrong!");
+        },
+      }
+    );
   };
 
   const handleCancel = () => {
-    navigation.goBack(); // Go back to the detail screen without saving
+    navigation.goBack();
   };
 
   return (
@@ -61,7 +96,28 @@ export default function EditLeadScreen({
           placeholder="Phone"
           keyboardType="phone-pad"
         />
+        <TextInput
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          placeholder="Email"
+          keyboardType="email-address"
+        />
+        <TextInput
+          style={styles.input}
+          value={address}
+          onChangeText={setAddress}
+          placeholder="Address"
+        />
 
+        <TextInput
+          style={styles.input}
+          placeholder="Estimated Revenue"
+          placeholderTextColor="#666"
+          value={String(estimatedRevenue)}
+          onChangeText={handleInputChange}
+          keyboardType="numeric"
+        />
         <Picker
           selectedValue={status}
           style={{
@@ -70,11 +126,11 @@ export default function EditLeadScreen({
           }}
           onValueChange={(itemValue: string) => handleStatusChange(itemValue)}
         >
-          <Picker.Item label="New" value="New" />
-          <Picker.Item label="Contacted" value="Contacted" />
-          <Picker.Item label="In-Negotiation" value="In-Negotiation" />
-          <Picker.Item label="Sale-Won" value="Sale-Won" />
-          <Picker.Item label="Sale-Lost" value="Sale-Lost" />
+          <Picker.Item label="New" value="NEW" />
+          <Picker.Item label="Contacted" value="CONTACTED" />
+          <Picker.Item label="In-Negotiation" value="IN_NEGOTIATION" />
+          <Picker.Item label="Sale-Won" value="WON" />
+          <Picker.Item label="Sale-Lost" value="LOST" />
         </Picker>
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>

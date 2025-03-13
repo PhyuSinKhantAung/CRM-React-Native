@@ -1,104 +1,9 @@
-// import React, { useState } from "react";
-// import { View, Text, StyleSheet } from "react-native";
-// import { Picker } from "@react-native-picker/picker";
-
-// export default function LeadItem({ route }: { route: any }) {
-//   const { lead } = route.params; // Access the lead data passed via navigation
-
-//   const [status, setStatus] = useState(lead.status);
-
-//   const handleStatusChange = (newStatus: string) => {
-//     setStatus(newStatus);
-//     // onStatusChange(newStatus);
-//   };
-
-//   const getStatusColor = (status: string) => {
-//     switch (status) {
-//       case "New":
-//         return "#FFA500"; // Orange
-//       case "Contacted":
-//         return "#00FF00"; // Green
-//       case "Qualified":
-//         return "#0000FF"; // Blue
-//       case "Lost":
-//         return "#FF0000"; // Red
-//       default:
-//         return "#ccc"; // Default gray
-//     }
-//   };
-
-//   return (
-//     <View style={styles.card}>
-//       <View style={styles.header}>
-//         <Text style={styles.name}>{lead.name}</Text>
-//         <View
-//           style={[
-//             styles.statusBullet,
-//             { backgroundColor: getStatusColor(status) },
-//           ]}
-//         />
-//       </View>
-//       <Text>Phone: {lead.phone}</Text>
-//       <View style={styles.statusContainer}>
-//         <Text>Status: </Text>
-//         <Picker
-//           selectedValue={status}
-//           style={styles.picker}
-//           // onValueChange={(itemValue: string) => handleStatusChange(itemValue)}
-//         >
-//           <Picker.Item label="New" value="New" />
-//           <Picker.Item label="Contacted" value="Contacted" />
-//           <Picker.Item label="Qualified" value="Qualified" />
-//           <Picker.Item label="Lost" value="Lost" />
-//         </Picker>
-//       </View>
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   card: {
-//     backgroundColor: "#fff",
-//     borderRadius: 8,
-//     padding: 16,
-//     marginVertical: 8,
-//     marginHorizontal: 16,
-//     shadowColor: "#000",
-//     shadowOffset: { width: 0, height: 2 },
-//     shadowOpacity: 0.1,
-//     shadowRadius: 4,
-//     elevation: 3,
-//   },
-//   header: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//     marginBottom: 8,
-//   },
-//   name: {
-//     fontSize: 16,
-//     fontWeight: "bold",
-//   },
-//   statusBullet: {
-//     width: 10,
-//     height: 10,
-//     borderRadius: 5,
-//   },
-//   statusContainer: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     marginTop: 8,
-//   },
-//   picker: {
-//     height: 50,
-//     width: 150,
-//   },
-// });
-
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-// import Icon from "react-native-vector-icons/MaterialIcons"; // Install this package if not already installed
+import { useGetLeadById } from "../hooks/leadHooks";
+import { Lead } from "../apis/leadApi";
+import { LineChart } from "react-native-chart-kit";
+import { Dimensions } from "react-native";
 
 export default function LeadDetailScreen({
   route,
@@ -107,8 +12,46 @@ export default function LeadDetailScreen({
   route: any;
   navigation: any;
 }) {
-  // const navigation = useNavigation();
-  const { lead } = route.params; // Get the lead data from navigation params
+  const [lead, setLead] = useState<Lead>(route.params.lead as Lead);
+
+  const { data: leadData, isLoading, isError, error } = useGetLeadById(lead.id);
+
+  useEffect(() => {
+    if (leadData) {
+      setLead(leadData);
+    }
+  }, [leadData]);
+
+  if (isLoading) {
+    return <Text style={styles.loadingText}>Loading...</Text>;
+  }
+
+  if (isError) {
+    return (
+      <Text style={styles.errorText}>
+        Something went wrong, please try again.
+      </Text>
+    );
+  }
+
+  function calculateForecastedRevenue(
+    estimatedRevenue: number,
+    leadStatus: string
+  ): number {
+    const probabilityMap: Record<string, number> = {
+      NEW: 0.1,
+      CONTACTED: 0.35,
+      IN_NEGOTIATION: 0.75,
+      WON: 1.0,
+      LOST: 0.0,
+    };
+    return Math.round(estimatedRevenue * (probabilityMap[leadStatus] || 0));
+  }
+
+  const statuses = ["NEW", "CONTACT", "IN-NEGO", "WON", "LOST"];
+  const forecastedRevenues = statuses.map((status) =>
+    calculateForecastedRevenue(+lead.estimatedRevenue, status)
+  );
 
   return (
     <View style={styles.container}>
@@ -116,7 +59,7 @@ export default function LeadDetailScreen({
         <View style={styles.header}>
           <Text style={styles.name}>{lead.name}</Text>
           <TouchableOpacity
-            onPress={() => navigation.navigate("EditLead", { lead })}
+            onPress={() => navigation.navigate("Edit Lead", { lead })}
           >
             <Text
               style={{
@@ -126,13 +69,48 @@ export default function LeadDetailScreen({
             >
               Edit
             </Text>
-
-            {/* <Icon name="edit" size={24} color="#007BFF" /> */}
           </TouchableOpacity>
         </View>
-        <Text>Phone: {lead.phone}</Text>
-        <Text>Status: {lead.status}</Text>
+
+        <Text style={styles.infoText}>Phone: {lead.phone}</Text>
+        <Text style={styles.infoText}>Email: {lead.email}</Text>
+        <Text style={styles.infoText}>Address: {lead.address}</Text>
+        <Text style={styles.infoText}>
+          Estimated Revenue: {lead.estimatedRevenue} USD
+        </Text>
+        <Text style={styles.infoText}>
+          Forecast Revenue: {lead.forecastedRevenue || 0} USD
+        </Text>
+        <Text style={styles.infoText}>
+          Actual Revenue: {lead.actualRevenue || 0} USD
+        </Text>
+        <Text style={styles.infoText}>
+          Status: {lead.status?.toLocaleLowerCase()}
+        </Text>
       </View>
+
+      <Text style={styles.chartTitle}>Future Forecast Revenue</Text>
+      <LineChart
+        data={{
+          labels: statuses,
+          datasets: [{ data: forecastedRevenues }],
+        }}
+        width={Dimensions.get("window").width - 32}
+        height={300}
+        yAxisLabel="$"
+        chartConfig={{
+          backgroundColor: "#f5f5f5",
+          backgroundGradientFrom: "#fff",
+          backgroundGradientTo: "#fff",
+          decimalPlaces: 0,
+          color: (opacity = 1) => `rgba(255, 111, 0, ${opacity})`,
+          labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+          style: { borderRadius: 8 },
+          propsForDots: { r: "6", strokeWidth: "2", stroke: "#FF6F00" },
+        }}
+        bezier
+        style={styles.chart}
+      />
     </View>
   );
 }
@@ -163,4 +141,31 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
+  infoText: {
+    marginBottom: 8,
+  },
+  loadingText: {
+    fontSize: 18,
+    textAlign: "center",
+    marginTop: 50,
+    color: "#FF6F00",
+  },
+  noLeadsText: {
+    fontSize: 18,
+    textAlign: "center",
+    marginTop: 50,
+    color: "#FF6F00",
+  },
+  errorText: {
+    fontSize: 18,
+    textAlign: "center",
+    marginTop: 50,
+    color: "red",
+  },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginTop: 20,
+  },
+  chart: { marginVertical: 24, borderRadius: 8 },
 });

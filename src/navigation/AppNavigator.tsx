@@ -16,10 +16,10 @@ export default function App() {
       <Stack.Navigator initialRouteName="Login">
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        <Stack.Screen name="LeadManagement" component={LeadManagementScreen} />
+        <Stack.Screen name="Lead Management" component={LeadManagementScreen} />
 
-        <Stack.Screen name="LeadDetails" component={LeadDetailsScreen} />
-        <Stack.Screen name="EditLead" component={EditLeadScreen} />
+        <Stack.Screen name="Lead Details" component={LeadDetailsScreen} />
+        <Stack.Screen name="Edit Lead" component={EditLeadScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

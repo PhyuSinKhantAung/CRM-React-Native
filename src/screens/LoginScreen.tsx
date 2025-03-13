@@ -6,23 +6,39 @@ import {
   TouchableOpacity,
   StyleSheet,
   useWindowDimensions,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
-// import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useLogin } from "../hooks/authHooks";
 
 export default function LoginScreen({ navigation }: { navigation: any }) {
-  // const navigation = useNavigation();
   const { width } = useWindowDimensions();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const isLargeScreen = width > 600; // Adjust breakpoint as needed
+  const isLargeScreen = width > 600;
+
+  const {
+    mutate: loginMutation,
+    isPending: isLoading,
+    isError,
+    error,
+  } = useLogin();
 
   const handleLogin = () => {
-    if (email === "salesperson@example.com" && password === "password") {
-      navigation.navigate("Dashboard");
-    } else {
-      // Alert.alert("Error", "Invalid email or password");
-    }
+    loginMutation(
+      { email, password },
+      {
+        onSuccess: (data) => {
+          AsyncStorage.setItem("jwt_token", data.accessToken);
+          navigation.navigate("Dashboard");
+        },
+        onError: (error) => {
+          Alert.alert("Login Failed", "Invalid Password.");
+        },
+      }
+    );
   };
 
   return (
@@ -43,9 +59,19 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
         value={password}
         onChangeText={setPassword}
       />
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={handleLogin}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Login</Text>
+        )}
       </TouchableOpacity>
+
+      {isError && <Text>Error: {error?.message}</Text>}
     </View>
   );
 }
